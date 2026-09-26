@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GMT+5:30 Pure Analog Clock</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Wallpoet&display=swap" rel="stylesheet">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: #05070c;
+      font-family: 'Wallpoet', cursive, monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 20px;
+    }
+
+    /* Background Ambient Glow & Grid */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 100vw;
+      height: 100vh;
+      background-image: 
+        radial-gradient(circle at center, rgba(0, 240, 255, 0.08) 0%, transparent 70%),
+        linear-gradient(to right, rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+      pointer-events: none;
+    }
+
+    /* Canvas Frame */
+    .clock-wrapper {
+      position: relative;
+      width: clamp(280px, 85vw, 520px);
+      height: clamp(280px, 85vw, 520px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="clock-wrapper">
+    <canvas id="clockCanvas" width="500" height="500"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('clockCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Calculate time strictly for GMT+5:30 (IST)
+    function getGMT530Date() {
+      const now = new Date();
+      const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const targetOffsetMs = 330 * 60000; // GMT+5:30 = 330 minutes
+      return new Date(utcMs + targetOffsetMs);
+    }
+
+    function renderClock() {
+      const gmtDate = getGMT530Date();
+
+      const width = canvas.width;
+      const height = canvas.height;
+      const cx = width / 2;
+      const cy = height / 2;
+      const radius = width / 2 - 25;
+
+      // Clear Canvas
+      ctx.clearRect(0, 0, width, height);
+
+      // 1. Outer Glow Ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 20;
+      ctx.stroke();
+
+      // 2. Inner Accent Ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius - 16, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 0, 85, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#ff0055';
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+
+      // 3. Dial Ticks
+      ctx.shadowBlur = 0;
+      for (let i = 0; i < 60; i++) {
+        const angle = (i * Math.PI) / 30;
+        const isHour = i % 5 === 0;
+        const tickLength = isHour ? 18 : 8;
+
+        const x1 = cx + Math.cos(angle) * (radius - tickLength - 6);
+        const y1 = cy + Math.sin(angle) * (radius - tickLength - 6);
+        const x2 = cx + Math.cos(angle) * (radius - 6);
+        const y2 = cy + Math.sin(angle) * (radius - 6);
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = isHour ? '#ff0055' : 'rgba(0, 240, 255, 0.4)';
+        ctx.lineWidth = isHour ? 3 : 1.5;
+        ctx.stroke();
+      }
+
+      // 4. Hour Numbers (Wallpoet Font)
+      ctx.font = '22px "Wallpoet", cursive';
+      ctx.fillStyle = '#00f0ff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 10;
+
+      for (let num = 1; num <= 12; num++) {
+        const angle = (num * Math.PI) / 6 - Math.PI / 2;
+        const nx = cx + Math.cos(angle) * (radius - 42);
+        const ny = cy + Math.sin(angle) * (radius - 42);
+        ctx.fillText(num.toString(), nx, ny);
+      }
+
+      // 5. Continuous Hands Calculation
+      const hours = gmtDate.getHours() % 12;
+      const minutes = gmtDate.getMinutes();
+      const seconds = gmtDate.getSeconds();
+      const ms = gmtDate.getMilliseconds();
+
+      const secAngle = ((seconds + ms / 1000) * Math.PI) / 30 - Math.PI / 2;
+      const minAngle = ((minutes + seconds / 60 + ms / 60000) * Math.PI) / 30 - Math.PI / 2;
+      const hourAngle = ((hours + minutes / 60 + seconds / 3600) * Math.PI) / 6 - Math.PI / 2;
+
+      // 6. Hour Hand
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(hourAngle) * (radius * 0.48), cy + Math.sin(hourAngle) * (radius * 0.48));
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 6.5;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 15;
+      ctx.stroke();
+
+      // 7. Minute Hand
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(minAngle) * (radius * 0.72), cy + Math.sin(minAngle) * (radius * 0.72));
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 12;
+      ctx.stroke();
+
+      // 8. Continuous Second Hand
+      ctx.beginPath();
+      ctx.moveTo(cx - Math.cos(secAngle) * 28, cy - Math.sin(secAngle) * 28);
+      ctx.lineTo(cx + Math.cos(secAngle) * (radius * 0.88), cy + Math.sin(secAngle) * (radius * 0.88));
+      ctx.strokeStyle = '#ff0055';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#ff0055';
+      ctx.shadowBlur = 18;
+      ctx.stroke();
+
+      // 9. Center Pivot Cap
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff0055';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      // Loop frame animation for high FPS continuous motion
+      requestAnimationFrame(renderClock);
+    }
+
+    // Start clock on page load
+    window.onload = function() {
+      renderClock();
+    };
+  </script>
+</body>
+</html>
